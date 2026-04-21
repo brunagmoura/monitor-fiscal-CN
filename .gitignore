@@ -1,0 +1,22 @@
+# Ambiente virtual
+.venv/
+venv/
+env/
+
+# Cache Python
+__pycache__/
+*.pyc
+*.pyo
+
+# PyCharm
+.idea/
+
+# Banco de dados local
+monitor_fiscal.db
+
+# Sistema
+.DS_Store
+Thumbs.db
+
+# Streamlit
+.streamlit/secrets.toml
