@@ -29,7 +29,7 @@ import requests
 # ===================================================================
 # Configuração
 # ===================================================================
-DIAS_LOOKBACK = 5
+DIAS_LOOKBACK = 2
 TIPOS_CAMARA = "PL,PLP,PEC,MPV,PLN"
 DB_PATH = Path(__file__).parent / "monitor_fiscal.db"
 TIMEOUT = 30
@@ -65,12 +65,15 @@ TERMOS_ALTO_RISCO = [
     r"cr[ée]ditos?\s+extraordin[áa]rios?",
     r"transfer[êe]ncias?\s+constitucionais?",
     r"regime\s+especial\s+de\s+(execu[çc][ãa]o|pagamento)",
-    r"fundos?\s+(especi(al|ais)|constituciona(l|is))"
+    r"fundos?\s+(especi(al|ais)|constituciona(l|is))",
+    r"calamidade",
+    r"estado\s+de\s+emerg[êe]ncia",
 ]
 
 RE_LC200 = [re.compile(p, re.IGNORECASE) for p in PADROES_LC200]
 RE_META  = [re.compile(p, re.IGNORECASE) for p in PADROES_META]
 RE_RISCO = [re.compile(p, re.IGNORECASE) for p in TERMOS_ALTO_RISCO]
+
 
 # ===================================================================
 # Coleta — Câmara dos Deputados
@@ -392,10 +395,17 @@ def baixar_inteiro_teor(df: pd.DataFrame) -> pd.DataFrame:
 
     df["inteiro_teor"] = textos
     # Atualiza data_ultima_movimentacao para a Camara com o que veio do teor
-    # (so substitui quando a lista de datas traz algo, senao mantem o valor original)
+    # Garante que a coluna seja string/object antes do update para evitar
+    # conversões implícitas do pandas que podem virar NaT.
+    if "data_ultima_movimentacao" not in df.columns:
+        df["data_ultima_movimentacao"] = ""
+    df["data_ultima_movimentacao"] = df["data_ultima_movimentacao"].astype("object")
+    datas_preenchidas = 0
     for idx, data_ult in zip(df.index, datas_mov):
         if data_ult:
-            df.at[idx, "data_ultima_movimentacao"] = data_ult
+            df.at[idx, "data_ultima_movimentacao"] = str(data_ult)
+            datas_preenchidas += 1
+    print(f"  Datas de ultima movimentacao preenchidas (Camara): {datas_preenchidas}")
     df["texto_classificado"] = df.apply(
         lambda r: r["inteiro_teor"] if r["inteiro_teor"] else r["ementa"],
         axis=1,
@@ -460,6 +470,11 @@ def classificar_df(df: pd.DataFrame) -> pd.DataFrame:
 def salvar(df: pd.DataFrame, caminho: Path = DB_PATH) -> None:
     df = df.copy()
     df["coletado_em"] = datetime.now().isoformat(timespec="seconds")
+    # Remove colunas de texto bruto antes de salvar - o inteiro teor pode
+    # pesar mais de 1 GB para coletas grandes, e ele ja cumpriu sua funcao
+    # (classificar). O painel nao usa esse campo.
+    colunas_pesadas = ["inteiro_teor", "texto_classificado"]
+    df = df.drop(columns=[c for c in colunas_pesadas if c in df.columns])
     with sqlite3.connect(caminho) as con:
         df.to_sql("proposicoes", con, if_exists="replace", index=False)
 

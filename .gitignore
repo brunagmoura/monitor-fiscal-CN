@@ -11,9 +11,6 @@ __pycache__/
 # PyCharm
 .idea/
 
-# Banco de dados local
-monitor_fiscal.db
-
 # Sistema
 .DS_Store
 Thumbs.db
