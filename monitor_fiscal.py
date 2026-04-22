@@ -29,7 +29,7 @@ import requests
 # ===================================================================
 # Configuração
 # ===================================================================
-DIAS_LOOKBACK = 2
+DIAS_LOOKBACK = 90
 TIPOS_CAMARA = "PL,PLP,PEC,MPV,PLN"
 DB_PATH = Path(__file__).parent / "monitor_fiscal.db"
 TIMEOUT = 30
